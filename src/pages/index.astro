@@ -1,23 +1,224 @@
 ---
+import CourseActions from "../components/CourseActions.astro";
+import Flash from "../components/Flash.astro";
+import Meter from "../components/Meter.astro";
 import Base from "../layouts/Base.astro";
-import { degreeProgress, requirementProgress } from "../lib/planner";
+import { readFlash } from "../lib/flash";
+import {
+  CURRENT_TERM,
+  degreeProgress,
+  eligibility,
+  nextTerm,
+  planWarnings,
+  requirementProgress,
+  suggestions,
+  termLabel,
+} from "../lib/planner";
+import type { Status } from "../lib/schema";
 import { loadPlanner } from "../lib/store";
 
+// The dashboard answers three questions, in reading order: how much of the
+// degree is done, what's still required, and what to take next. Every number
+// on it is derived from the database on this request.
 const data = loadPlanner();
+const byCode = new Map(data.catalog.map((course) => [course.code, course]));
+const flash = readFlash(Astro.url, new Set(byCode.keys()));
+
 const progress = degreeProgress(data.degree.totalUnits, data.catalog, data.records);
 const requirements = data.requirements.map((r) => requirementProgress(r, data.catalog, data.records));
+const gaps = requirements.filter((r) => r.gap > 0);
+// units no requirement asks for specifically: anything counts toward them
+const specific = data.requirements.filter((r) => r.rule === "list").reduce((sum, r) => sum + r.requiredUnits, 0);
+const upcoming = nextTerm(CURRENT_TERM);
+const next = suggestions(data.catalog, data.records, upcoming);
+const blocked = data.catalog
+  .map((course) => ({ course, e: eligibility(course, data.records) }))
+  .filter(
+    (x): x is { course: typeof x.course; e: { kind: "missing"; missing: string[] } } =>
+      x.e.kind === "missing" && x.course.sessions.includes(upcoming.session),
+  );
+const warnings = planWarnings(data.catalog, data.records);
+
+const groups: { status: Status; heading: string; empty: string }[] = [
+  { status: "current", heading: `Current — ${termLabel(CURRENT_TERM)}`, empty: "You aren't taking any courses this semester." },
+  { status: "planned", heading: "Planned", empty: "Nothing planned yet. Browse available courses to start shaping your next semester." },
+  { status: "completed", heading: "Completed", empty: "No completed courses recorded yet." },
+];
+const recordsBy = (status: Status) => data.records.filter((r) => r.status === status);
+const stateLabel = { complete: "Complete", "in-progress": "In progress", "not-started": "Not started" } as const;
 ---
 
 <Base title="Dashboard" current="dashboard">
-  <h1>{data.degree.name}</h1>
-  <p>{progress.completed} / {progress.total} units completed</p>
-  <ul>
-    {
-      requirements.map((r) => (
-        <li>
-          {r.requirement.name}: {r.completed} / {r.required} units ({r.state})
-        </li>
-      ))
-    }
-  </ul>
+  <div class="page-intro">
+    <p class="eyebrow">{data.student.name} · {data.degree.code}</p>
+    <h1>{data.degree.name}</h1>
+    <p class="lede">See where you are. Understand what remains. Plan what comes next.</p>
+  </div>
+
+  <Flash flash={flash} />
+
+  <div class="dashboard">
+    <div class="dashboard-main">
+      <section aria-labelledby="summary-heading" class="summary">
+        <h2 id="summary-heading">Degree progress</h2>
+        <p class="summary-headline" data-testid="units-completed">
+          <strong>{progress.completed}</strong> / {progress.total} units completed
+          <span class="summary-pct">({progress.percentComplete}%)</span>
+        </p>
+        <Meter completed={progress.completed} current={progress.current} planned={progress.planned} total={progress.total} />
+        <dl class="unit-totals">
+          <div class="total-completed"><dt>Completed</dt><dd data-testid="total-completed">{progress.completed} units</dd></div>
+          <div class="total-current"><dt>Current</dt><dd data-testid="total-current">{progress.current} units</dd></div>
+          <div class="total-planned"><dt>Planned</dt><dd data-testid="total-planned">{progress.planned} units</dd></div>
+          <div class="total-unplanned"><dt>Not yet planned</dt><dd data-testid="total-unplanned">{progress.unplanned} units</dd></div>
+        </dl>
+      </section>
+
+      <section aria-labelledby="requirements-heading">
+        <h2 id="requirements-heading">Requirements</h2>
+        <ol class="requirements">
+          {
+            requirements.map((r) => (
+              <li class="requirement" data-requirement={r.requirement.name} data-state={r.state}>
+                <div class="requirement-head">
+                  <h3>{r.requirement.name}</h3>
+                  <span class:list={["badge", `badge-${r.state}`]}>{stateLabel[r.state]}</span>
+                </div>
+                <p class="requirement-units">
+                  <strong data-testid="requirement-completed">{r.completed}</strong> / {r.required} units completed
+                  {r.current > 0 && <span> · {r.current} current</span>}
+                  {r.planned > 0 && <span> · {r.planned} planned</span>}
+                </p>
+                <Meter completed={r.completed} current={r.current} planned={r.planned} total={r.required} />
+                <p class="requirement-desc">{r.requirement.description}</p>
+              </li>
+            ))
+          }
+        </ol>
+      </section>
+
+      <section aria-labelledby="courses-heading">
+        <h2 id="courses-heading">Your courses</h2>
+        {
+          groups.map((group) => (
+            <div class="course-group">
+              <h3>{group.heading}</h3>
+              {recordsBy(group.status).length === 0 ? (
+                <p class="empty">{group.empty}</p>
+              ) : (
+                <ul class="course-list">
+                  {recordsBy(group.status).map((record) => {
+                    const course = byCode.get(record.code)!;
+                    return (
+                      <li class="course-row" data-course={record.code} data-status={record.status}>
+                        <div class="course-id">
+                          <a class="course-code" href={`/courses/${record.code}/`}>{record.code}</a>
+                          <span class="course-title">{course.title}</span>
+                          <span class="course-meta">
+                            {course.units} units · {record.status === "completed" ? "Completed" : record.status === "current" ? "Current" : "Planned"}, {termLabel(record)}
+                          </span>
+                        </div>
+                        {record.status !== "completed" && (
+                          <CourseActions code={record.code} status={record.status} term={record} returnTo="/" compact />
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          ))
+        }
+      </section>
+    </div>
+
+    <aside class="dashboard-side" aria-label="Planning">
+      <section aria-labelledby="remaining-heading">
+        <h2 id="remaining-heading">Still required</h2>
+        {
+          gaps.length === 0 && progress.unplanned === 0 ? (
+            <p class="empty">Your completed, current and planned courses cover every requirement.</p>
+          ) : (
+            <ul class="remaining" data-testid="still-required">
+              {gaps.map((r) => (
+                <li data-requirement={r.requirement.name}>
+                  <strong>{r.gap} units</strong> from {r.requirement.name}
+                </li>
+              ))}
+              {progress.unplanned > 0 && (
+                <li data-requirement="Total">
+                  <strong>{progress.unplanned} units</strong> of any courses to reach {progress.total}
+                </li>
+              )}
+            </ul>
+          )
+        }
+        <p class="note">
+          Counts your current and planned courses as if they'll be passed. {specific} of the {progress.total} units
+          come from set lists; the rest can be electives from anywhere.
+        </p>
+      </section>
+
+      {
+        warnings.length > 0 && (
+          <section aria-labelledby="warnings-heading" class="warnings">
+            <h2 id="warnings-heading">Check your plan</h2>
+            <ul>
+              {warnings.map((w) => <li data-course={w.code}>{w.message}</li>)}
+            </ul>
+            <p><a href="/plan/">Review your semester plan</a></p>
+          </section>
+        )
+      }
+
+      <section aria-labelledby="next-heading">
+        <h2 id="next-heading">Courses you could take next</h2>
+        <p class="note">Prerequisites met and offered in {termLabel(upcoming)}.</p>
+        {
+          next.length === 0 ? (
+            <p class="empty">No eligible courses run in {termLabel(upcoming)}. <a href="/courses/">Browse all courses</a></p>
+          ) : (
+            <ul class="suggestions" data-testid="suggestions">
+              {next.map((course) => (
+                <li class="course-row" data-course={course.code}>
+                  <div class="course-id">
+                    <a class="course-code" href={`/courses/${course.code}/`}>{course.code}</a>
+                    <span class="course-title">{course.title}</span>
+                    <span class="course-meta">{course.units} units · Prerequisites met</span>
+                  </div>
+                  <CourseActions code={course.code} status={null} returnTo="/" suggestedTerm={upcoming} compact />
+                </li>
+              ))}
+            </ul>
+          )
+        }
+        {
+          blocked.length > 0 && (
+            <details class="blocked">
+              <summary>Not yet available ({blocked.length})</summary>
+              <ul data-testid="blocked">
+                {blocked.map(({ course, e }) => (
+                  <li data-course={course.code}>
+                    <a href={`/courses/${course.code}/`}>{course.code}</a> {course.title} —{" "}
+                    <span class="missing">Missing prerequisite: {e.missing.join(", ")}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )
+        }
+      </section>
+
+      <section aria-labelledby="demo-heading" class="demo-reset">
+        <h2 id="demo-heading">Shared demo</h2>
+        <p class="note">
+          There's no login: everyone who opens this prototype edits the same demo student. Reset to put their records
+          back to the starting state.
+        </p>
+        <form method="post" action="/api/reset">
+          <button class="quiet">Reset demo data</button>
+        </form>
+      </section>
+    </aside>
+  </div>
 </Base>

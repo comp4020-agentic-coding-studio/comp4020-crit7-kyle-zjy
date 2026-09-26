@@ -1,0 +1,23 @@
+---
+// A units bar: completed solid, current hatched, planned outlined. The bar
+// is decoration for sighted readers; the numbers beside it carry the same
+// information as text, so nothing depends on colour or on seeing the bar.
+interface Props {
+  completed: number;
+  current: number;
+  planned: number;
+  total: number;
+}
+
+const { completed, current, planned, total } = Astro.props;
+const pct = (n: number) => `${Math.max(0, Math.min(100, (n / total) * 100))}%`;
+const c = Math.min(completed, total);
+const cu = Math.min(current, total - c);
+const p = Math.min(planned, total - c - cu);
+---
+
+<div class="meter" aria-hidden="true">
+  <span class="meter-completed" style={`width: ${pct(c)}`}></span>
+  <span class="meter-current" style={`width: ${pct(cu)}`}></span>
+  <span class="meter-planned" style={`width: ${pct(p)}`}></span>
+</div>

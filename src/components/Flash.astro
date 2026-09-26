@@ -1,0 +1,17 @@
+---
+import type { Flash } from "../lib/flash";
+
+interface Props {
+  flash: Flash | null;
+}
+
+const { flash } = Astro.props;
+---
+
+{
+  flash && (
+    <p class:list={["flash", `flash-${flash.kind}`]} role={flash.kind === "error" ? "alert" : "status"}>
+      <strong>{flash.kind === "error" ? "Not saved." : "Saved."}</strong> {flash.message}
+    </p>
+  )
+}

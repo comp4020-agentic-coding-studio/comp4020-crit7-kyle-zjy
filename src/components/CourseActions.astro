@@ -1,0 +1,93 @@
+---
+import type { Status } from "../lib/schema";
+import { type Term, planningTerms, termKey, termLabel } from "../lib/planner";
+
+// The status controls for one course: a single form whose submit buttons
+// each send a different `action` to /api/courses. Which buttons show depends
+// on the course's current status. Every button carries the course code for
+// screen readers, since a page lists many "Add to plan" buttons.
+
+interface Props {
+  code: string;
+  status: Status | null;
+  /** the planned term, for a planned course */
+  term?: Term;
+  /** the page to come back to after the change */
+  returnTo: string;
+  /** the semester the plan selector starts on */
+  suggestedTerm?: Term;
+  compact?: boolean;
+}
+
+const { code, status, term, returnTo, suggestedTerm, compact = false } = Astro.props;
+const terms = planningTerms();
+const selected = termKey(term ?? suggestedTerm ?? terms[0]);
+const selectId = `term-${code}`;
+const showPlan = status === null || status === "planned";
+---
+
+<form class:list={["course-actions", { compact }]} method="post" action="/api/courses">
+  <input type="hidden" name="course" value={code} />
+  <input type="hidden" name="returnTo" value={returnTo} />
+  {
+    showPlan && (
+      <span class="term-picker">
+        <label for={selectId}>
+          <span class="visually-hidden">Semester for {code}</span>
+          <span aria-hidden="true">{status === "planned" ? "Planned for" : "Plan for"}</span>
+        </label>
+        <select id={selectId} name="term">
+          {terms.map((t) => (
+            <option value={termKey(t)} selected={termKey(t) === selected}>
+              {termLabel(t)}
+            </option>
+          ))}
+        </select>
+      </span>
+    )
+  }
+  {
+    status === null && (
+      <button class="primary" name="action" value="plan">
+        Add <span class="visually-hidden">{code}</span> to plan
+      </button>
+    )
+  }
+  {
+    status === "planned" && (
+      <button name="action" value="plan">
+        Move <span class="visually-hidden">{code}</span> to this semester
+      </button>
+    )
+  }
+  {
+    status === "planned" && (
+      <button name="action" value="current">
+        Taking <span class="visually-hidden">{code}</span> now
+      </button>
+    )
+  }
+  {
+    (status === "planned" || status === "current") && (
+      <button name="action" value="complete">
+        Mark <span class="visually-hidden">{code}</span> completed
+      </button>
+    )
+  }
+  {
+    status === null && !compact && (
+      <button name="action" value="complete">
+        Already completed <span class="visually-hidden">{code}</span>
+      </button>
+    )
+  }
+  {
+    status !== null && (
+      <button class="quiet" name="action" value="remove">
+        {status === "planned" ? "Remove" : status === "current" ? "Drop" : "Remove"}{" "}
+        <span class="visually-hidden">{code}</span>
+        {status === "planned" ? " from plan" : status === "current" ? "" : " record"}
+      </button>
+    )
+  }
+</form>
