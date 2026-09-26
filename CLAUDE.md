@@ -71,6 +71,13 @@ framework. A small complete product beats a large incomplete one.
   a test that mutates the demo student must use courses no other file touches,
   or reset first and run in the file that owns resets.
 - Before committing docs: `pnpm check:evidence`.
+- Before pushing anything that changes pages or assets, run the deploy's
+  link check against a locally started built server (`node
+  dist/server/entry.mjs`, launched directly, not through pnpm):
+  `pnpm dlx linkinator <url> --recurse --silent --skip "^(?!<url>)"`.
+  A README image once passed every test and broke only on Fly.
+- The spec server must resolve modules like production: `global-setup.ts`
+  strips vitest's NODE_PATH for that reason. Don't add it back.
 
 ## Working in this repo
 

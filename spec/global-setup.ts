@@ -28,9 +28,14 @@ export default async function setup(project: TestProject): Promise<() => void> {
     });
   });
 
+  // Vitest's bin shim exports a NODE_PATH reaching into node_modules/.pnpm,
+  // which lets the server load packages production can't (the README image
+  // passed here on `sharp` and 500'd on Fly). Drop it, and vitest's
+  // NODE_ENV=test, so the server resolves modules the way the image does.
+  const { NODE_PATH: _nodePath, NODE_ENV: _nodeEnv, ...env } = process.env;
   const server = spawn("node", [entry], {
     env: {
-      ...process.env,
+      ...env,
       HOST: "127.0.0.1",
       PORT: String(port),
       DATABASE_PATH: join(mkdtempSync(join(tmpdir(), "spec-db-")), "test.db"),
