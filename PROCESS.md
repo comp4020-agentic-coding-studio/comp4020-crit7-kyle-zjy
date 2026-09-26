@@ -38,7 +38,9 @@ last, from screenshots
 ([`bfb12ef`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit7-kyle-zjy/commit/bfb12ef)).
 They showed that "still required" double-counted and that on phones the
 next-course list was buried. The axe invariant caught a notice sitting
-outside any landmark.
+outside any landmark. A final hierarchy pass
+([`5cd4860`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit7-kyle-zjy/commit/5cd4860))
+added no schema: each new figure is a tested pure function.
 
 <!-- AUTHOR: add one or two sentences in your own words: a moment where you
      redirected or corrected the agent, and what you'd do differently. -->
