@@ -44,8 +44,18 @@ export function readFlash(url: URL, courseCodes: Set<string>): Flash | null {
   }
 }
 
-/** A same-site path to go back to, or the dashboard if it looks like anything else. */
+export const FLASH_PARAMS = ["done", "error", "course", "term"];
+
+/** A same-site path (and query) to go back to, or the dashboard if it looks like anything else. */
 export function safeReturnPath(value: FormDataEntryValue | null): string {
   const path = typeof value === "string" ? value : "";
-  return /^\/(?!\/)[A-Za-z0-9/_-]*$/.test(path) ? path : "/";
+  return /^\/(?!\/)[A-Za-z0-9/_-]*(\?[A-Za-z0-9=&%+._-]*)?$/.test(path) ? path : "/";
+}
+
+/** This page's path and query without the last change's flash, to come back to after the next. */
+export function returnPathFor(url: URL): string {
+  const params = new URLSearchParams(url.search);
+  for (const key of FLASH_PARAMS) params.delete(key);
+  const query = params.toString();
+  return query ? `${url.pathname}?${query}` : url.pathname;
 }

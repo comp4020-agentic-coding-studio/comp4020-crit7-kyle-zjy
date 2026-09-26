@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { bus } from "../../lib/events";
-import { type Done, type Failure, safeReturnPath } from "../../lib/flash";
+import { type Done, FLASH_PARAMS, type Failure, safeReturnPath } from "../../lib/flash";
 import { CURRENT_TERM, compareTerms, parseTermKey, planningTerms, termKey } from "../../lib/planner";
 import { loadPlanner, removeCourse, setCourseStatus } from "../../lib/store";
 
@@ -23,6 +23,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 
   const go = (params: Record<string, string>) => {
     const url = new URL(back, "http://x");
+    for (const key of FLASH_PARAMS) url.searchParams.delete(key);
     for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
     return redirect(`${url.pathname}${url.search}`, 303);
   };

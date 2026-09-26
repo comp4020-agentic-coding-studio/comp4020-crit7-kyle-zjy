@@ -1,0 +1,137 @@
+---
+import CourseActions from "../../components/CourseActions.astro";
+import CourseStatus from "../../components/CourseStatus.astro";
+import Flash from "../../components/Flash.astro";
+import Base from "../../layouts/Base.astro";
+import { readFlash, returnPathFor } from "../../lib/flash";
+import { CURRENT_TERM, eligibility, levelOf, nextTerm, sessionLabel } from "../../lib/planner";
+import { SESSIONS } from "../../lib/schema";
+import { loadPlanner } from "../../lib/store";
+
+// The demo catalogue, filtered on the server from query parameters, so the
+// filters are a plain GET form: shareable, bookmarkable, and no JavaScript.
+const data = loadPlanner();
+const params = Astro.url.searchParams;
+const q = (params.get("q") ?? "").trim();
+const level = params.get("level") ?? "";
+const session = params.get("session") ?? "";
+const standing = params.get("standing") ?? "";
+
+const levels = [...new Set(data.catalog.map((c) => levelOf(c.code)))].sort();
+const standings = [
+  { value: "eligible", label: "Prerequisites met" },
+  { value: "missing", label: "Missing a prerequisite" },
+  { value: "planned", label: "Planned" },
+  { value: "current", label: "Taking now" },
+  { value: "completed", label: "Completed" },
+];
+
+const rows = data.catalog.map((course) => ({
+  course,
+  e: eligibility(course, data.records),
+  record: data.records.find((r) => r.code === course.code),
+}));
+const needle = q.toLowerCase();
+const shown = rows.filter(({ course, e }) => {
+  if (needle && !`${course.code} ${course.title}`.toLowerCase().includes(needle)) return false;
+  if (level && String(levelOf(course.code)) !== level) return false;
+  if (session && !course.sessions.includes(session as (typeof SESSIONS)[number])) return false;
+  if (standing) {
+    const value = e.kind === "recorded" ? e.status : e.kind;
+    if (value !== standing) return false;
+  }
+  return true;
+});
+const filtered = Boolean(q || level || session || standing);
+const returnTo = returnPathFor(Astro.url);
+const flash = readFlash(Astro.url, new Set(data.catalog.map((c) => c.code)));
+const upcoming = nextTerm(CURRENT_TERM);
+---
+
+<Base title="Courses" current="courses">
+  <div class="page-intro">
+    <p class="eyebrow">{data.degree.name} · demo catalogue</p>
+    <h1>Courses</h1>
+    <p class="lede">
+      {data.catalog.length} courses in this prototype's catalogue. Plan one into an upcoming semester, or record it as
+      already completed.
+    </p>
+  </div>
+
+  <Flash flash={flash} />
+
+  <form class="filters" method="get" action="/courses/" role="search" aria-label="Filter courses">
+    <div class="field field-wide">
+      <label for="q">Search code or title</label>
+      <input id="q" name="q" type="search" value={q} placeholder="e.g. COMP2420 or databases" />
+    </div>
+    <div class="field">
+      <label for="level">Level</label>
+      <select id="level" name="level">
+        <option value="">Any level</option>
+        {levels.map((l) => <option value={String(l)} selected={String(l) === level}>{l}-level</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label for="session">Offered in</label>
+      <select id="session" name="session">
+        <option value="">Either semester</option>
+        {SESSIONS.map((s) => <option value={s} selected={s === session}>{sessionLabel(s)}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label for="standing">Your standing</label>
+      <select id="standing" name="standing">
+        <option value="">Any</option>
+        {standings.map((s) => <option value={s.value} selected={s.value === standing}>{s.label}</option>)}
+      </select>
+    </div>
+    <div class="filter-actions">
+      <button class="primary">Apply filters</button>
+      {filtered && <a href="/courses/">Clear filters</a>}
+    </div>
+  </form>
+
+  <p class="result-count" role="status">
+    {shown.length === data.catalog.length ? `Showing all ${shown.length} courses` : `Showing ${shown.length} of ${data.catalog.length} courses`}
+  </p>
+
+  {
+    shown.length === 0 ? (
+      <p class="empty">
+        No courses match those filters. <a href="/courses/">Clear filters</a>
+      </p>
+    ) : (
+      <ul class="catalogue" data-testid="catalogue">
+        {shown.map(({ course, e, record }) => (
+          <li class="catalogue-item" data-course={course.code} data-standing={e.kind === "recorded" ? e.status : e.kind}>
+            <div class="catalogue-body">
+              <h2 class="catalogue-heading">
+                <a href={`/courses/${course.code}/`}>
+                  <span class="course-code">{course.code}</span>
+                  <span class="course-title">{course.title}</span>
+                </a>
+              </h2>
+              <p class="course-meta">
+                {course.units} units · {course.sessions.map(sessionLabel).join(" and ")}
+                {course.prerequisites.length > 0 && <> · Requires {course.prerequisites.join(", ")}</>}
+              </p>
+              <p>
+                <CourseStatus eligibility={e} term={record} />
+              </p>
+            </div>
+            {e.kind === "recorded" && e.status === "completed" ? null : (
+              <CourseActions
+                code={course.code}
+                status={record?.status ?? null}
+                term={record}
+                returnTo={returnTo}
+                suggestedTerm={course.sessions.includes(upcoming.session) ? upcoming : nextTerm(upcoming)}
+              />
+            )}
+          </li>
+        ))}
+      </ul>
+    )
+  }
+</Base>

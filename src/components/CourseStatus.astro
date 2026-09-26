@@ -1,0 +1,27 @@
+---
+import type { Eligibility, Term } from "../lib/planner";
+import { termLabel } from "../lib/planner";
+
+// One line saying where a course stands for the student, in words: recorded
+// (and when), open to take, or blocked by named prerequisites.
+interface Props {
+  eligibility: Eligibility;
+  term?: Term;
+}
+
+const { eligibility: e, term } = Astro.props;
+const recorded = { completed: "Completed", current: "Taking now", planned: "Planned" } as const;
+---
+
+{
+  e.kind === "recorded" ? (
+    <span class:list={["status", `status-${e.status}`]}>
+      {recorded[e.status]}
+      {term && e.status !== "current" && <>, {termLabel(term)}</>}
+    </span>
+  ) : e.kind === "eligible" ? (
+    <span class="status status-eligible">Prerequisites met</span>
+  ) : (
+    <span class="status status-missing">Missing prerequisite: {e.missing.join(", ")}</span>
+  )
+}

@@ -141,6 +141,74 @@ describe("planner", () => {
     expect(res.headers.get("location")).toBe("/?error=bad-action");
   });
 
+  it("shows each course's standing in the catalogue, from the database", async () => {
+    const doc = await page("/courses/");
+    const item = (code: string) => doc.querySelector(`.catalogue-item[data-course="${code}"]`);
+    expect(item("COMP1100")?.getAttribute("data-standing")).toBe("completed");
+    // a completed course offers no way to add it again
+    expect(item("COMP1100")?.querySelector('button[value="plan"]')).toBeNull();
+    expect(item("COMP2420")?.getAttribute("data-standing")).toBe("eligible");
+    expect(item("COMP2420")?.querySelector('button[value="plan"]')).not.toBeNull();
+    expect(item("COMP3620")?.textContent).toContain("Missing prerequisite: COMP3600");
+  });
+
+  it("filters the catalogue on the server", async () => {
+    const codes = async (query: string) =>
+      [...(await page(`/courses/?${query}`)).querySelectorAll(".catalogue-item")].map((el) =>
+        el.getAttribute("data-course"),
+      );
+    expect(await codes("q=security")).toEqual(["COMP2420"]);
+    expect(await codes("q=comp36")).toEqual(["COMP3600", "COMP3620"]);
+    const blocked = await codes("standing=missing");
+    expect(blocked).toContain("COMP3620");
+    expect(blocked).not.toContain("COMP2420");
+    expect(await codes("level=3000&session=S1")).toEqual(["COMP3620"]);
+  });
+
+  it("keeps the catalogue's filters after a change made from it", async () => {
+    const res = await post("/api/courses", {
+      course: "COMP2400",
+      action: "plan",
+      term: "2027-S1",
+      returnTo: "/courses/?level=2000&done=removed",
+    });
+    expect(res.headers.get("location")).toBe("/courses/?level=2000&done=planned&course=COMP2400&term=2027-S1");
+    expect((await change("COMP2400", "remove")).status).toBe(303);
+  });
+
+  it("answers an unknown course page with a 404", async () => {
+    const res = await fetch(new URL("/courses/NOPE0000/", baseUrl));
+    expect(res.status).toBe(404);
+    expect(await res.text()).toContain("Course not found");
+  });
+
+  it("flags a planned course whose prerequisite won't be done in time", async () => {
+    // COMP3120 needs COMP2120, which the seed plans for S1 2027 — same semester
+    expect((await change("COMP3120", "plan", { term: "2027-S1" })).status).toBe(303);
+    const warnings = [...(await page("/plan/")).querySelectorAll('[data-testid="plan-warning"]')].map(
+      (el) => el.textContent ?? "",
+    );
+    expect(warnings.some((w) => w.includes("COMP3120") && w.includes("COMP2120"))).toBe(true);
+
+    // moving it a semester later, after COMP2120, clears the prerequisite warning
+    expect((await change("COMP3120", "plan", { term: "2027-S2" })).status).toBe(303);
+    const after = [...(await page("/plan/")).querySelectorAll('[data-testid="plan-warning"]')].map(
+      (el) => el.textContent ?? "",
+    );
+    expect(after.some((w) => w.includes("COMP3120"))).toBe(false);
+  });
+
+  it("totals each planned semester and flags one heavier than full time", async () => {
+    for (const code of ["COMP2310", "COMP2400", "COMP2420", "MATH1013"]) {
+      await change(code, "plan", { term: "2027-S1" });
+    }
+    const doc = await page("/plan/");
+    const semester = doc.querySelector('.semester[data-term="2027-S1"]');
+    // COMP2120 from the seed plus four; MATH1013 was completed, so planning it moves that record
+    expect(semester?.querySelector('[data-testid="semester-units"]')?.textContent).toBe("30 units");
+    expect(semester?.querySelector('[data-testid="overload"]')?.textContent).toContain("30 units planned");
+  });
+
   it("restores the seed state on reset", async () => {
     expect((await post("/api/reset", {})).status).toBe(303);
     const doc = await page();

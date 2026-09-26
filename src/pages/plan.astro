@@ -1,0 +1,114 @@
+---
+import CourseActions from "../components/CourseActions.astro";
+import Flash from "../components/Flash.astro";
+import Base from "../layouts/Base.astro";
+import { readFlash } from "../lib/flash";
+import {
+  CURRENT_TERM,
+  FULL_TIME_UNITS,
+  planWarnings,
+  planningTerms,
+  semesterPlan,
+  termKey,
+  termLabel,
+} from "../lib/planner";
+import { loadPlanner } from "../lib/store";
+
+// The plan, semester by semester: what's planned when, how heavy each
+// semester is, and what doesn't line up (a prerequisite planned too late, a
+// course planned in a semester it doesn't run in). All of it derived from
+// the student's planned rows on this request.
+const data = loadPlanner();
+const byCode = new Map(data.catalog.map((c) => [c.code, c]));
+const flash = readFlash(Astro.url, new Set(byCode.keys()));
+const plan = semesterPlan(data.catalog, data.records);
+const warnings = planWarnings(data.catalog, data.records);
+const current = data.records.filter((r) => r.status === "current");
+const currentUnits = current.reduce((sum, r) => sum + (byCode.get(r.code)?.units ?? 0), 0);
+const planned = new Map(plan.map((semester) => [termKey(semester.term), semester]));
+// every semester in the planning window shows, planned or not
+const semesters = planningTerms().map((term) => planned.get(termKey(term)) ?? { term, courses: [], units: 0, overloaded: false });
+const beyond = plan.filter((s) => !semesters.some((x) => termKey(x.term) === termKey(s.term)));
+---
+
+<Base title="Semester plan" current="plan">
+  <div class="page-intro">
+    <p class="eyebrow">{data.degree.name}</p>
+    <h1>Semester plan</h1>
+    <p class="lede">
+      Your next four semesters. A standard full-time load is {FULL_TIME_UNITS} units; heavier semesters and courses whose
+      prerequisites won't be done in time are flagged — for information, not enforced.
+    </p>
+  </div>
+
+  <Flash flash={flash} />
+
+  <section aria-labelledby="now-heading" class="semester semester-now">
+    <div class="semester-head">
+      <h2 id="now-heading">{termLabel(CURRENT_TERM)} <span class="semester-tag">now</span></h2>
+      <p class="semester-units">{currentUnits} units</p>
+    </div>
+    {
+      current.length === 0 ? (
+        <p class="empty">No current courses.</p>
+      ) : (
+        <ul class="course-list">
+          {current.map((r) => (
+            <li class="course-row" data-course={r.code} data-status="current">
+              <div class="course-id">
+                <a class="course-code" href={`/courses/${r.code}/`}>{r.code}</a>
+                <span class="course-title">{byCode.get(r.code)?.title}</span>
+                <span class="course-meta">{byCode.get(r.code)?.units} units · Current</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </section>
+
+  {
+    [...semesters, ...beyond].map((semester) => {
+      const id = `sem-${termKey(semester.term)}`;
+      return (
+        <section aria-labelledby={id} class="semester" data-term={termKey(semester.term)}>
+          <div class="semester-head">
+            <h2 id={id}>{termLabel(semester.term)}</h2>
+            <p class="semester-units" data-testid="semester-units">{semester.units} units</p>
+          </div>
+          {semester.overloaded && (
+            <p class="warning-line" data-testid="overload">
+              <strong>{semester.units} units planned</strong> — heavier than a standard full-time semester of {FULL_TIME_UNITS} units.
+            </p>
+          )}
+          {semester.courses.length === 0 ? (
+            <p class="empty">
+              Nothing planned for {termLabel(semester.term)} yet. <a href="/courses/">Browse available courses</a> to start shaping it.
+            </p>
+          ) : (
+            <ul class="course-list">
+              {semester.courses.map((course) => {
+                const courseWarnings = warnings.filter((w) => w.code === course.code);
+                return (
+                  <li class="course-row" data-course={course.code} data-status="planned">
+                    <div class="course-id">
+                      <a class="course-code" href={`/courses/${course.code}/`}>{course.code}</a>
+                      <span class="course-title">{course.title}</span>
+                      <span class="course-meta">{course.units} units</span>
+                      {courseWarnings.map((w) => (
+                        <span class="warning-line" data-testid="plan-warning">
+                          <strong>Check:</strong> {w.message}
+                        </span>
+                      ))}
+                    </div>
+                    <CourseActions code={course.code} status="planned" term={semester.term} returnTo="/plan/" compact />
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      );
+    })
+  }
+</Base>

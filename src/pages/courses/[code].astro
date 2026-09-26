@@ -1,0 +1,137 @@
+---
+import CourseActions from "../../components/CourseActions.astro";
+import CourseStatus from "../../components/CourseStatus.astro";
+import Flash from "../../components/Flash.astro";
+import Base from "../../layouts/Base.astro";
+import { readFlash, returnPathFor } from "../../lib/flash";
+import { CURRENT_TERM, countsToward, eligibility, levelOf, nextTerm, sessionLabel } from "../../lib/planner";
+import { loadPlanner } from "../../lib/store";
+
+// One course: what it is, where the student stands with it, what it needs,
+// what it opens up, and which of the degree's requirements it counts toward.
+const data = loadPlanner();
+const code = (Astro.params.code ?? "").toUpperCase();
+const course = data.catalog.find((c) => c.code === code);
+if (!course) Astro.response.status = 404;
+
+const statusOf = (c: string) => data.records.find((r) => r.code === c);
+const record = course && statusOf(course.code);
+const e = course && eligibility(course, data.records);
+const unlocks = course ? data.catalog.filter((c) => c.prerequisites.includes(course.code)) : [];
+const countsFor = course ? data.requirements.filter((r) => countsToward(r, course.code)) : [];
+const flash = readFlash(Astro.url, new Set(data.catalog.map((c) => c.code)));
+const upcoming = nextTerm(CURRENT_TERM);
+const recorded = { completed: "completed", current: "taking now", planned: "planned" } as const;
+---
+
+<Base title={course ? `${course.code} ${course.title}` : "Course not found"} current="courses">
+  {
+    !course || !e ? (
+      <div class="page-intro">
+        <p class="eyebrow">Courses</p>
+        <h1>Course not found</h1>
+        <p class="lede">
+          There's no course {code ? <code>{code}</code> : null} in this prototype's catalogue. <a href="/courses/">Browse all courses</a>
+        </p>
+      </div>
+    ) : (
+      <>
+        <div class="page-intro">
+          <p class="eyebrow">
+            <a href="/courses/">Courses</a> · {levelOf(course.code)}-level
+          </p>
+          <h1>
+            <span class="course-code">{course.code}</span> {course.title}
+          </h1>
+          <p class="lede">{course.description}</p>
+        </div>
+
+        <Flash flash={flash} />
+
+        <div class="detail">
+          <div class="detail-main">
+            <section aria-labelledby="standing-heading">
+              <h2 id="standing-heading">Your standing</h2>
+              <p class="standing" data-course={course.code} data-standing={e.kind === "recorded" ? e.status : e.kind}>
+                <CourseStatus eligibility={e} term={record} />
+              </p>
+              {e.kind === "recorded" && e.status === "completed" ? (
+                <form method="post" action="/api/courses" class="course-actions">
+                  <input type="hidden" name="course" value={course.code} />
+                  <input type="hidden" name="returnTo" value={returnPathFor(Astro.url)} />
+                  <button class="quiet" name="action" value="remove">
+                    Remove <span class="visually-hidden">{course.code}</span> completion record
+                  </button>
+                </form>
+              ) : (
+                <CourseActions
+                  code={course.code}
+                  status={record?.status ?? null}
+                  term={record}
+                  returnTo={returnPathFor(Astro.url)}
+                  suggestedTerm={course.sessions.includes(upcoming.session) ? upcoming : nextTerm(upcoming)}
+                />
+              )}
+            </section>
+
+            <section aria-labelledby="prereq-heading">
+              <h2 id="prereq-heading">Prerequisites</h2>
+              {course.prerequisites.length === 0 ? (
+                <p>None in this demo catalogue.</p>
+              ) : (
+                <ul class="plain-list">
+                  {course.prerequisites.map((p) => {
+                    const r = statusOf(p);
+                    return (
+                      <li>
+                        <a href={`/courses/${p}/`}>{p}</a> —{" "}
+                        {r ? (
+                          <span class:list={["status", `status-${r.status}`]}>You have it {recorded[r.status]}</span>
+                        ) : (
+                          <span class="status status-missing">You have not completed {p} yet</span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+
+            <section aria-labelledby="unlocks-heading">
+              <h2 id="unlocks-heading">Leads to</h2>
+              {unlocks.length === 0 ? (
+                <p>No course in this demo catalogue lists {course.code} as a prerequisite.</p>
+              ) : (
+                <ul class="plain-list">
+                  {unlocks.map((u) => (
+                    <li>
+                      <a href={`/courses/${u.code}/`}>{u.code}</a> {u.title}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+
+          <aside class="detail-side" aria-label="Course facts">
+            <dl class="facts">
+              <div><dt>Units</dt><dd>{course.units}</dd></div>
+              <div><dt>Offered</dt><dd>{course.sessions.map(sessionLabel).join(" and ")}</dd></div>
+              <div>
+                <dt>Counts toward</dt>
+                <dd>
+                  {countsFor.length === 0 ? (
+                    "General electives"
+                  ) : (
+                    <ul class="plain-list">{countsFor.map((r) => <li>{r.name}</li>)}</ul>
+                  )}
+                </dd>
+              </div>
+            </dl>
+            <p class="note">Offerings and prerequisites are simplified for this demo. Programs &amp; Courses is the source of truth.</p>
+          </aside>
+        </div>
+      </>
+    )
+  }
+</Base>
