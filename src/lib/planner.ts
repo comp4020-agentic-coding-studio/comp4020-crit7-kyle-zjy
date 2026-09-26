@@ -192,6 +192,31 @@ export function requirementProgress(
   };
 }
 
+/** "Advanced computing" → "advanced-computing": a requirement's name as a URL filter value. */
+export function requirementSlug(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+// --- the completion estimate -------------------------------------------------
+
+export interface CompletionEstimate {
+  /** units still to do once this semester's current courses are passed */
+  remainingUnits: number;
+  perSemester: number;
+  /** standard semesters those units take, rounded up */
+  semesters: number;
+}
+
+/**
+ * A rough guide, not a forecast: the units left after this semester, divided
+ * into standard full-time semesters. It ignores offerings, prerequisite
+ * chains and part-time study on purpose — the page labels it an estimate.
+ */
+export function completionEstimate(progress: DegreeProgress, perSemester = FULL_TIME_UNITS): CompletionEstimate {
+  const remainingUnits = Math.max(0, progress.total - progress.completed - progress.current);
+  return { remainingUnits, perSemester, semesters: Math.ceil(remainingUnits / perSemester) };
+}
+
 // --- eligibility -----------------------------------------------------------
 
 export type Eligibility =
@@ -216,6 +241,17 @@ export function eligibility(course: CatalogCourse, records: StudentRecord[]): El
   return missing.length === 0 ? { kind: "eligible" } : { kind: "missing", missing };
 }
 
+/** Courses that count toward a requirement and the student could add now: not recorded, prerequisites met. */
+export function eligibleToward(
+  requirement: Requirement,
+  catalog: CatalogCourse[],
+  records: StudentRecord[],
+): CatalogCourse[] {
+  return catalog.filter(
+    (course) => countsToward(requirement, course.code) && eligibility(course, records).kind === "eligible",
+  );
+}
+
 /** Courses the student could take in `term`: eligible and offered then. */
 export function suggestions(
   catalog: CatalogCourse[],
@@ -230,38 +266,63 @@ export function suggestions(
 
 // --- the semester plan -----------------------------------------------------
 
-export interface PlannedSemester {
+export type SemesterKind = "past" | "current" | "future";
+
+export interface RoadmapSemester {
   term: Term;
-  courses: CatalogCourse[];
+  kind: SemesterKind;
+  entries: { course: CatalogCourse; record: StudentRecord }[];
   units: number;
+  /** more than a standard full-time load; never flagged for past semesters */
   overloaded: boolean;
+}
+
+export interface RoadmapYear {
+  year: number;
+  semesters: RoadmapSemester[];
+}
+
+const STATUS_ORDER: Record<Status, number> = { completed: 0, current: 1, planned: 2 };
+
+/**
+ * The degree as a timeline, grouped by year: every semester the student has
+ * a record in, plus now and the planning window (so empty semesters still
+ * show, ready to plan into). Past semesters hold completed courses; the
+ * current one what's being taken; future ones the plan.
+ */
+export function roadmap(
+  catalog: CatalogCourse[],
+  records: StudentRecord[],
+  current: Term = CURRENT_TERM,
+  window: Term[] = planningTerms(4, current),
+): RoadmapYear[] {
+  const byCode = new Map(catalog.map((course) => [course.code, course]));
+  const terms = new Map<string, Term>();
+  for (const term of [current, ...window, ...records]) {
+    terms.set(termKey(term), { year: term.year, session: term.session });
+  }
+  const semesters = [...terms.values()].sort(compareTerms).map((term): RoadmapSemester => {
+    const entries = records
+      .filter((record) => termKey(record) === termKey(term) && byCode.has(record.code))
+      .map((record) => ({ course: byCode.get(record.code) as CatalogCourse, record }))
+      .sort((a, b) => STATUS_ORDER[a.record.status] - STATUS_ORDER[b.record.status] || a.course.code.localeCompare(b.course.code));
+    const units = entries.reduce((sum, entry) => sum + entry.course.units, 0);
+    const order = compareTerms(term, current);
+    const kind: SemesterKind = order < 0 ? "past" : order === 0 ? "current" : "future";
+    return { term, kind, entries, units, overloaded: kind !== "past" && units > FULL_TIME_UNITS };
+  });
+  const years: RoadmapYear[] = [];
+  for (const semester of semesters) {
+    const last = years.at(-1);
+    if (last?.year === semester.term.year) last.semesters.push(semester);
+    else years.push({ year: semester.term.year, semesters: [semester] });
+  }
+  return years;
 }
 
 export interface PlanWarning {
   code: string;
   message: string;
-}
-
-/** Planned courses grouped by semester, in order. */
-export function semesterPlan(catalog: CatalogCourse[], records: StudentRecord[]): PlannedSemester[] {
-  const byCode = new Map(catalog.map((course) => [course.code, course]));
-  const groups = new Map<string, PlannedSemester>();
-  for (const record of records.filter((r) => r.status === "planned")) {
-    const course = byCode.get(record.code);
-    if (!course) continue;
-    const key = termKey(record);
-    const group = groups.get(key) ?? {
-      term: { year: record.year, session: record.session },
-      courses: [],
-      units: 0,
-      overloaded: false,
-    };
-    group.courses.push(course);
-    group.units += course.units;
-    group.overloaded = group.units > FULL_TIME_UNITS;
-    groups.set(key, group);
-  }
-  return [...groups.values()].sort((a, b) => compareTerms(a.term, b.term));
 }
 
 /**

@@ -3,13 +3,16 @@ import {
   type CatalogCourse,
   type Requirement,
   type StudentRecord,
+  completionEstimate,
   degreeProgress,
   eligibility,
+  eligibleToward,
   levelOf,
   planWarnings,
   planningTerms,
   requirementProgress,
-  semesterPlan,
+  requirementSlug,
+  roadmap,
   suggestions,
 } from "../src/lib/planner";
 
@@ -197,16 +200,57 @@ describe("the semester plan", () => {
     expect(warnings[0].message).toContain("only runs in Semester 2");
   });
 
-  it("groups planned courses by semester in order and flags an overload", () => {
+  it("lays the degree out by year, past to planned, and flags an overload", () => {
     const many = ["COMP1001", "COMP1002", "COMP1003", "COMP1004", "COMP1005"].map((c) => course(c));
     const records = [
       ...many.map((c) => record(c.code, "planned", 2027, "S2")),
       record("COMP1110", "planned", 2027, "S1"),
       record("COMP2100", "completed", 2026, "S1"),
     ];
-    const plan = semesterPlan([...cat, ...many], records);
-    expect(plan.map((s) => `${s.term.year}-${s.term.session}`)).toEqual(["2027-S1", "2027-S2"]);
-    expect(plan[0]).toMatchObject({ units: 6, overloaded: false });
-    expect(plan[1]).toMatchObject({ units: 30, overloaded: true });
+    const years = roadmap([...cat, ...many], records, { year: 2026, session: "S2" }, [
+      { year: 2027, session: "S1" },
+      { year: 2027, session: "S2" },
+    ]);
+    expect(years.map((y) => [y.year, y.semesters.map((s) => `${s.term.session}:${s.kind}:${s.units}`)])).toEqual([
+      [2026, ["S1:past:6", "S2:current:0"]],
+      [2027, ["S1:future:6", "S2:future:30"]],
+    ]);
+    expect(years[1].semesters[1].overloaded).toBe(true);
+    expect(years[1].semesters[0].overloaded).toBe(false);
+  });
+
+  it("shows empty semesters in the planning window, ready to plan into", () => {
+    const years = roadmap(cat, [], { year: 2026, session: "S2" }, [{ year: 2027, session: "S1" }]);
+    expect(years.flatMap((y) => y.semesters.map((s) => s.entries.length))).toEqual([0, 0]);
+  });
+
+  it("never flags a past semester, however heavy", () => {
+    const many = ["COMP1001", "COMP1002", "COMP1003", "COMP1004", "COMP1005"].map((c) => course(c));
+    const years = roadmap(many, many.map((c) => record(c.code, "completed", 2025, "S1")), { year: 2026, session: "S2" }, []);
+    expect(years[0].semesters[0]).toMatchObject({ kind: "past", units: 30, overloaded: false });
+  });
+});
+
+describe("planning guidance", () => {
+  it("finds the courses toward a requirement the student could add now", () => {
+    const cat = [course("COMP3600", ["COMP2100"]), course("COMP3620", ["COMP3600"]), course("COMP3900"), course("COMP2100")];
+    const records = [record("COMP2100", "completed"), record("COMP3900", "planned")];
+    // COMP3620 is blocked, COMP3900 is already planned, COMP2100 is below 3000
+    expect(eligibleToward(levelRequirement(24), cat, records).map((c) => c.code)).toEqual(["COMP3600"]);
+  });
+
+  it("turns a requirement's name into a filter value", () => {
+    expect(requirementSlug("Mathematics and statistics")).toBe("mathematics-and-statistics");
+  });
+
+  it("estimates the standard semesters left after this one, rounding up", () => {
+    const progress = degreeProgress(144, catalog, [record("COMP1100", "completed"), record("COMP1110", "current")]);
+    // 144 − 6 completed − 6 current = 132 units → 5.5 semesters → 6
+    expect(completionEstimate(progress)).toEqual({ remainingUnits: 132, perSemester: 24, semesters: 6 });
+  });
+
+  it("estimates nothing left once every unit is completed or current", () => {
+    const progress = { ...degreeProgress(144, catalog, []), completed: 132, current: 12 };
+    expect(completionEstimate(progress).semesters).toBe(0);
   });
 });

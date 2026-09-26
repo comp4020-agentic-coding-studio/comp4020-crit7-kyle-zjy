@@ -56,6 +56,59 @@ describe("planner", () => {
     expect(statusOf(doc, "COMP2420")).toBeNull();
   });
 
+  it("says where the student is in one line, and estimates what's left", async () => {
+    const doc = await page();
+    // seed: 42 completed + 12 current + 6 planned = 60 of 144
+    expect(doc.querySelector('[data-testid="progress-context"]')?.textContent?.replace(/\s+/g, " ").trim()).toBe(
+      "60 units are completed, current or planned. 84 units remain unplanned.",
+    );
+    // 144 − 42 − 12 = 90 units → 3.75 standard semesters → about 4
+    const estimate = doc.querySelector('[data-testid="estimate"]')?.textContent ?? "";
+    expect(estimate).toContain("90 units remain");
+    expect(estimate).toContain("about 4 more standard semesters");
+    expect(estimate).toContain("not an ANU graduation forecast");
+  });
+
+  it("makes each open requirement actionable: units, eligible courses, a filtered link", async () => {
+    const doc = await page();
+    const row = doc.querySelector('[data-testid="still-required"] [data-requirement="Advanced computing"]');
+    expect(row?.textContent).toContain("24 units remaining");
+    // COMP3600 and COMP3900 are open; COMP3120, COMP3310, COMP3620 and COMP4020 are blocked
+    expect(row?.getAttribute("data-eligible")).toBe("2");
+    expect(row?.querySelector('[data-testid="eligible-count"]')?.textContent).toContain("2 currently eligible courses");
+    const href = row?.querySelector("a")?.getAttribute("href") ?? "";
+    expect(href).toBe("/courses/?counts=advanced-computing&standing=eligible");
+
+    // the link lands on exactly the courses it counted
+    const listed = [...(await page(href)).querySelectorAll(".catalogue-item")].map((el) => el.getAttribute("data-course"));
+    expect(listed).toEqual(["COMP3600", "COMP3900"]);
+  });
+
+  it("filters the catalogue by the requirement a course counts toward", async () => {
+    const doc = await page("/courses/?counts=mathematics-and-statistics");
+    const listed = [...doc.querySelectorAll(".catalogue-item")].map((el) => el.getAttribute("data-course"));
+    expect(listed).toEqual(["MATH1005", "MATH1013", "STAT1003"]);
+    expect(doc.querySelector(".result-count")?.textContent).toContain("that count toward Mathematics and statistics");
+  });
+
+  it("lays out the plan by year, with past semesters read-only and empty ones inviting a plan", async () => {
+    const doc = await page("/plan/");
+    const past = doc.querySelector('.semester[data-term="2025-S1"]');
+    expect(past?.classList.contains("semester-past")).toBe(true);
+    expect([...(past?.querySelectorAll("[data-course]") ?? [])].map((el) => el.getAttribute("data-course"))).toEqual([
+      "COMP1100",
+      "ECON1101",
+      "MATH1005",
+      "STAT1003",
+    ]);
+    expect(past?.querySelector("form")).toBeNull();
+
+    const empty = doc.querySelector('.semester[data-term="2027-S2"]');
+    expect(empty?.textContent).toContain("Nothing planned yet");
+    expect(empty?.querySelector("a")?.getAttribute("href")).toBe("/courses/?session=S2&standing=eligible");
+    expect([...doc.querySelectorAll(".year-heading")].map((h) => h.textContent)).toEqual(["2025", "2026", "2027", "2028"]);
+  });
+
   it("adds a course to the plan, and it's still planned after a reload", async () => {
     const res = await change("COMP2420", "plan", { term: "2027-S1" });
     expect(res.status).toBe(303);

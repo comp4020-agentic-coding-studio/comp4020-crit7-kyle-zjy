@@ -4,7 +4,7 @@ import CourseStatus from "../../components/CourseStatus.astro";
 import Flash from "../../components/Flash.astro";
 import Base from "../../layouts/Base.astro";
 import { readFlash, returnPathFor } from "../../lib/flash";
-import { CURRENT_TERM, eligibility, levelOf, nextTerm, sessionLabel } from "../../lib/planner";
+import { CURRENT_TERM, countsToward, eligibility, levelOf, nextTerm, requirementSlug, sessionLabel } from "../../lib/planner";
 import { SESSIONS } from "../../lib/schema";
 import { loadPlanner } from "../../lib/store";
 
@@ -16,6 +16,8 @@ const q = (params.get("q") ?? "").trim();
 const level = params.get("level") ?? "";
 const session = params.get("session") ?? "";
 const standing = params.get("standing") ?? "";
+const counts = params.get("counts") ?? "";
+const requirement = data.requirements.find((r) => requirementSlug(r.name) === counts);
 
 const levels = [...new Set(data.catalog.map((c) => levelOf(c.code)))].sort();
 const standings = [
@@ -36,13 +38,14 @@ const shown = rows.filter(({ course, e }) => {
   if (needle && !`${course.code} ${course.title}`.toLowerCase().includes(needle)) return false;
   if (level && String(levelOf(course.code)) !== level) return false;
   if (session && !course.sessions.includes(session as (typeof SESSIONS)[number])) return false;
+  if (requirement && !countsToward(requirement, course.code)) return false;
   if (standing) {
     const value = e.kind === "recorded" ? e.status : e.kind;
     if (value !== standing) return false;
   }
   return true;
 });
-const filtered = Boolean(q || level || session || standing);
+const filtered = Boolean(q || level || session || standing || requirement);
 const returnTo = returnPathFor(Astro.url);
 const flash = readFlash(Astro.url, new Set(data.catalog.map((c) => c.code)));
 const upcoming = nextTerm(CURRENT_TERM);
@@ -80,6 +83,17 @@ const upcoming = nextTerm(CURRENT_TERM);
       </select>
     </div>
     <div class="field">
+      <label for="counts">Counts toward</label>
+      <select id="counts" name="counts">
+        <option value="">Any requirement</option>
+        {
+          data.requirements.map((r) => (
+            <option value={requirementSlug(r.name)} selected={r === requirement}>{r.name}</option>
+          ))
+        }
+      </select>
+    </div>
+    <div class="field">
       <label for="standing">Your standing</label>
       <select id="standing" name="standing">
         <option value="">Any</option>
@@ -94,6 +108,7 @@ const upcoming = nextTerm(CURRENT_TERM);
 
   <p class="result-count" role="status">
     {shown.length === data.catalog.length ? `Showing all ${shown.length} courses` : `Showing ${shown.length} of ${data.catalog.length} courses`}
+    {requirement && <> that count toward {requirement.name}</>}
   </p>
 
   {
@@ -102,36 +117,57 @@ const upcoming = nextTerm(CURRENT_TERM);
         No courses match those filters. <a href="/courses/">Clear filters</a>
       </p>
     ) : (
+      <>
+      <div class="catalogue-head" aria-hidden="true">
+        <span>Course</span>
+        <span>Your standing</span>
+        <span>Plan</span>
+      </div>
       <ul class="catalogue" data-testid="catalogue">
-        {shown.map(({ course, e, record }) => (
-          <li class="catalogue-item" data-course={course.code} data-standing={e.kind === "recorded" ? e.status : e.kind}>
-            <div class="catalogue-body">
-              <h2 class="catalogue-heading">
-                <a href={`/courses/${course.code}/`}>
-                  <span class="course-code">{course.code}</span>
-                  <span class="course-title">{course.title}</span>
-                </a>
-              </h2>
-              <p class="course-meta">
-                {course.units} units · {course.sessions.map(sessionLabel).join(" and ")}
-                {course.prerequisites.length > 0 && <> · Requires {course.prerequisites.join(", ")}</>}
-              </p>
-              <p>
+        {shown.map(({ course, e, record }) => {
+          const recorded = e.kind === "recorded" && e.status !== "planned";
+          return (
+            <li
+              class:list={["catalogue-item", { "is-recorded": recorded }]}
+              data-course={course.code}
+              data-standing={e.kind === "recorded" ? e.status : e.kind}
+            >
+              <div class="catalogue-course">
+                <h2 class="catalogue-heading">
+                  <a href={`/courses/${course.code}/`}>
+                    <span class="course-code">{course.code}</span>
+                    <span class="course-title">{course.title}</span>
+                  </a>
+                </h2>
+                <p class="course-meta">
+                  {course.units} units · {course.sessions.map(sessionLabel).join(" and ")}
+                </p>
+              </div>
+              <div class="catalogue-standing">
                 <CourseStatus eligibility={e} term={record} />
-              </p>
-            </div>
-            {e.kind === "recorded" && e.status === "completed" ? null : (
-              <CourseActions
-                code={course.code}
-                status={record?.status ?? null}
-                term={record}
-                returnTo={returnTo}
-                suggestedTerm={course.sessions.includes(upcoming.session) ? upcoming : nextTerm(upcoming)}
-              />
-            )}
-          </li>
-        ))}
+                {course.prerequisites.length > 0 && e.kind !== "missing" && (
+                  <span class="course-meta">Requires {course.prerequisites.join(", ")}</span>
+                )}
+              </div>
+              <div class="catalogue-action">
+                {recorded && e.kind === "recorded" && e.status === "completed" ? (
+                  <span class="course-meta">Counted toward your degree</span>
+                ) : (
+                  <CourseActions
+                    code={course.code}
+                    status={record?.status ?? null}
+                    term={record}
+                    returnTo={returnTo}
+                    suggestedTerm={course.sessions.includes(upcoming.session) ? upcoming : nextTerm(upcoming)}
+                    compact={e.kind === "recorded"}
+                  />
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
+      </>
     )
   }
 </Base>

@@ -6,11 +6,15 @@ import Base from "../layouts/Base.astro";
 import { readFlash } from "../lib/flash";
 import {
   CURRENT_TERM,
+  FULL_TIME_UNITS,
+  completionEstimate,
   degreeProgress,
   eligibility,
+  eligibleToward,
   nextTerm,
   planWarnings,
   requirementProgress,
+  requirementSlug,
   suggestions,
   termLabel,
 } from "../lib/planner";
@@ -26,7 +30,12 @@ const flash = readFlash(Astro.url, new Set(byCode.keys()));
 
 const progress = degreeProgress(data.degree.totalUnits, data.catalog, data.records);
 const requirements = data.requirements.map((r) => requirementProgress(r, data.catalog, data.records));
-const gaps = requirements.filter((r) => r.gap > 0);
+const gaps = requirements
+  .filter((r) => r.gap > 0)
+  .map((r) => ({ ...r, eligible: eligibleToward(r.requirement, data.catalog, data.records) }));
+const accounted = progress.completed + progress.current + progress.planned;
+const estimate = completionEstimate(progress);
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 // units the set course lists account for (the level requirement overlaps
 // them); the rest of the degree is open to electives
 const specific = data.requirements.filter((r) => r.rule === "list").reduce((sum, r) => sum + r.requiredUnits, 0);
@@ -51,7 +60,7 @@ const stateLabel = { complete: "Complete", "in-progress": "In progress", "not-st
 ---
 
 <Base title="Dashboard" current="dashboard">
-  <div class="page-intro">
+  <div class="page-intro page-intro-tight">
     <p class="eyebrow">{data.student.name} · {data.degree.code}</p>
     <h1>{data.degree.name}</h1>
     <p class="lede">See where you are. Understand what remains. Plan what comes next.</p>
@@ -59,23 +68,41 @@ const stateLabel = { complete: "Complete", "in-progress": "In progress", "not-st
 
   <Flash flash={flash} />
 
+  <section aria-labelledby="where-heading" class="standing-band">
+    <h2 id="where-heading" class="band-label">Where you are</h2>
+    <div class="band-grid">
+      <div class="band-figure">
+        <p class="band-units" data-testid="units-completed">
+          <strong>{progress.completed}</strong><span class="band-of"> / {progress.total}</span>
+          <span class="band-caption">units completed</span>
+        </p>
+        <p class="band-pct"><strong>{progress.percentComplete}%</strong> of the degree</p>
+      </div>
+      <dl class="unit-totals">
+        <div class="total-completed"><dt>Completed</dt><dd data-testid="total-completed">{progress.completed} units</dd></div>
+        <div class="total-current"><dt>Current</dt><dd data-testid="total-current">{progress.current} units</dd></div>
+        <div class="total-planned"><dt>Planned</dt><dd data-testid="total-planned">{progress.planned} units</dd></div>
+        <div class="total-unplanned"><dt>Not yet planned</dt><dd data-testid="total-unplanned">{progress.unplanned} units</dd></div>
+      </dl>
+    </div>
+    <Meter completed={progress.completed} current={progress.current} planned={progress.planned} total={progress.total} />
+    <p class="band-context" data-testid="progress-context">
+      <strong>{accounted} units</strong> are completed, current or planned.{" "}
+      <strong>{progress.unplanned} units</strong> remain unplanned.
+    </p>
+    {
+      estimate.semesters > 0 && (
+        <p class="band-estimate" data-testid="estimate">
+          <span class="estimate-label">Estimate</span> After this semester, {estimate.remainingUnits} units remain — about{" "}
+          {plural(estimate.semesters, "more standard semester")} at {FULL_TIME_UNITS} units each. Prototype guidance, not an
+          ANU graduation forecast.
+        </p>
+      )
+    }
+  </section>
+
   <div class="dashboard">
     <div class="dashboard-main">
-      <section aria-labelledby="summary-heading" class="summary">
-        <h2 id="summary-heading">Degree progress</h2>
-        <p class="summary-headline" data-testid="units-completed">
-          <strong>{progress.completed}</strong> / {progress.total} units completed{" "}
-          <span class="summary-pct">({progress.percentComplete}%)</span>
-        </p>
-        <Meter completed={progress.completed} current={progress.current} planned={progress.planned} total={progress.total} />
-        <dl class="unit-totals">
-          <div class="total-completed"><dt>Completed</dt><dd data-testid="total-completed">{progress.completed} units</dd></div>
-          <div class="total-current"><dt>Current</dt><dd data-testid="total-current">{progress.current} units</dd></div>
-          <div class="total-planned"><dt>Planned</dt><dd data-testid="total-planned">{progress.planned} units</dd></div>
-          <div class="total-unplanned"><dt>Not yet planned</dt><dd data-testid="total-unplanned">{progress.unplanned} units</dd></div>
-        </dl>
-      </section>
-
       <section aria-labelledby="requirements-heading">
         <h2 id="requirements-heading">Requirements</h2>
         <ol class="requirements">
@@ -165,25 +192,45 @@ const stateLabel = { complete: "Complete", "in-progress": "In progress", "not-st
             <p class="empty">Your completed, current and planned courses cover every requirement.</p>
           ) : (
             <ul class="remaining" data-testid="still-required">
-              {gaps.map((r) => (
-                <li data-requirement={r.requirement.name}>
-                  <strong>{r.gap} units</strong> from {r.requirement.name}
-                </li>
-              ))}
+              {gaps.map((r) => {
+                const slug = requirementSlug(r.requirement.name);
+                return (
+                  <li data-requirement={r.requirement.name} data-eligible={r.eligible.length}>
+                    <h3>{r.requirement.name}</h3>
+                    <p class="remaining-units">
+                      <strong>{r.gap} units remaining</strong>
+                    </p>
+                    {r.eligible.length > 0 ? (
+                      <>
+                        <p class="remaining-eligible" data-testid="eligible-count">
+                          {plural(r.eligible.length, "currently eligible course")}
+                        </p>
+                        <a class="remaining-link" href={`/courses/?counts=${slug}&standing=eligible`}>
+                          Browse eligible courses<span class="visually-hidden"> for {r.requirement.name}</span>
+                          <span aria-hidden="true"> →</span>
+                        </a>
+                      </>
+                    ) : (
+                      <>
+                        <p class="remaining-eligible" data-testid="eligible-count">
+                          No eligible courses yet — prerequisites come first.
+                        </p>
+                        <a class="remaining-link" href={`/courses/?counts=${slug}`}>
+                          See what counts<span class="visually-hidden"> toward {r.requirement.name}</span>
+                          <span aria-hidden="true"> →</span>
+                        </a>
+                      </>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )
         }
-        {
-          progress.unplanned > 0 && (
-            <p class="remaining-total" data-testid="unplanned-total">
-              Overall, <strong>{progress.unplanned} of {progress.total} units</strong> aren't completed, current or
-              planned yet{gaps.length > 0 ? " — the requirements above come out of those units" : ""}.
-            </p>
-          )
-        }
         <p class="note">
-          Counts your current and planned courses as if they'll be passed. {specific} of the {progress.total} units
-          come from set lists; the rest can be electives from anywhere.
+          Units remaining count your current and planned courses as if they'll be passed, and come out of the{" "}
+          {progress.unplanned} unplanned units. {specific} of the {progress.total} units come from set lists; the rest can
+          be electives from anywhere.
         </p>
       </section>
 

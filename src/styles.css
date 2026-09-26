@@ -421,28 +421,106 @@ label {
   }
 }
 
-.summary-headline {
-  margin: 0;
-  font-family: var(--serif);
-  font-size: 1.35rem;
-  color: var(--ink-2);
+/* "Where you are": the first thing on the dashboard, and the loudest */
+
+.page-intro-tight {
+  margin-block-end: 1.25rem;
+  padding-block-end: 0;
+  border-block-end: 0;
 }
 
-.summary-headline strong {
-  font-size: 2.6rem;
-  color: var(--ink);
+.standing-band {
+  margin-block-end: 2.75rem;
+  padding-block: 1.5rem 1.25rem;
+  border-block: 2px solid var(--ink);
+}
+
+.band-label {
+  margin: 0 0 0.75rem;
+  font-family: var(--sans);
+  font-size: 0.8rem;
   font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.band-grid {
+  display: grid;
+  gap: 1.25rem 3rem;
+  align-items: end;
+}
+
+@media (min-width: 52rem) {
+  .band-grid {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
+.band-units {
+  margin: 0;
+  font-family: var(--serif);
+  line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 
-.summary-pct {
-  color: var(--muted);
-  font-size: 1rem;
+.band-units strong {
+  font-size: clamp(3.5rem, 2.5rem + 4vw, 5rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
-.summary .meter {
-  height: 0.85rem;
-  margin-block: 0.75rem 1rem;
+.band-of {
+  font-size: clamp(1.6rem, 1.2rem + 1.5vw, 2.1rem);
+  color: var(--ink-2);
+}
+
+.band-caption {
+  display: block;
+  margin-block-start: 0.4rem;
+  font-family: var(--sans);
+  font-size: 1rem;
+  color: var(--ink-2);
+}
+
+.band-pct {
+  margin: 0.6rem 0 0;
+  color: var(--ink-2);
+}
+
+.band-pct strong {
+  color: var(--accent);
+  font-size: 1.2rem;
+}
+
+.standing-band .meter {
+  height: 1rem;
+  margin-block: 1.25rem 0.9rem;
+}
+
+.band-context {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+}
+
+.band-estimate {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.estimate-label {
+  display: inline-block;
+  margin-inline-end: 0.35rem;
+  padding: 0 0.4rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  color: var(--ink-2);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: 0.1em;
 }
 
 .unit-totals {
@@ -647,19 +725,37 @@ label {
   list-style: none;
   margin: 0 0 0.75rem;
   padding: 0;
+  border-block-start: 1px solid var(--rule);
 }
 
 .remaining li {
-  padding-block: 0.45rem;
+  padding-block: 0.8rem;
   border-block-end: 1px solid var(--rule);
 }
 
-.remaining-total {
-  margin-block-end: 0.5rem;
+.remaining h3 {
+  font-size: 1rem;
 }
 
-.remaining strong {
+.remaining p {
+  margin: 0.1rem 0 0;
+}
+
+.remaining-units strong {
   font-variant-numeric: tabular-nums;
+}
+
+.remaining-eligible {
+  color: var(--ink-2);
+  font-size: 0.92rem;
+}
+
+.remaining-link {
+  display: inline-block;
+  margin-block-start: 0.3rem;
+  padding-block: 0.2rem;
+  font-size: 0.92rem;
+  font-weight: 600;
 }
 
 .warnings {
@@ -835,36 +931,60 @@ label {
   list-style: none;
   margin: 0;
   padding: 0;
-  border-block-start: 1px solid var(--rule);
+  border-block-start: 2px solid var(--ink);
+}
+
+.catalogue-head {
+  display: none;
 }
 
 .catalogue-item {
   display: grid;
-  gap: 0.6rem 2rem;
-  padding-block: 1.1rem;
+  gap: 0.5rem 2rem;
+  padding-block: 1rem;
+  padding-inline-start: 0.9rem;
   border-block-end: 1px solid var(--rule);
+  border-inline-start: 3px solid transparent;
 }
 
-@media (min-width: 52rem) {
+@media (min-width: 56rem) {
+  .catalogue-head,
   .catalogue-item {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.9fr) minmax(0, 1.25fr);
+    align-items: start;
   }
 
-  .catalogue-item .course-actions {
-    justify-content: flex-end;
-    max-width: 28rem;
+  .catalogue-head {
+    display: grid;
+    gap: 0 2rem;
+    padding-block-end: 0.4rem;
+    padding-inline-start: calc(0.9rem + 3px);
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .catalogue-head + .catalogue {
+    border-block-start-width: 1px;
+  }
+
+  .catalogue-standing {
+    padding-block-start: 0.15rem;
   }
 }
 
 .catalogue-heading {
   font-family: var(--sans);
-  font-size: 1.05rem;
+  font-size: 1.02rem;
   font-weight: 500;
   margin: 0 0 0.15rem;
 }
 
 .catalogue-heading a {
+  display: grid;
+  gap: 0.05rem;
   color: var(--ink);
   text-decoration: none;
 }
@@ -875,11 +995,33 @@ label {
 
 .catalogue-heading .course-code {
   color: var(--accent);
-  margin-inline-end: 0.5rem;
 }
 
-.catalogue-body p {
-  margin: 0.1rem 0 0;
+.catalogue-course p {
+  margin: 0;
+}
+
+.catalogue-standing {
+  display: grid;
+  gap: 0.1rem;
+  align-content: start;
+}
+
+.catalogue-action .course-actions {
+  gap: 0.4rem;
+}
+
+/* courses already done or under way step back; what can still be planned leads */
+.catalogue-item.is-recorded .course-code {
+  color: var(--muted);
+}
+
+.catalogue-item.is-recorded .course-title {
+  color: var(--ink-2);
+}
+
+.catalogue-item.is-recorded {
+  border-inline-start-color: var(--rule-strong);
 }
 
 /* --- course detail ------------------------------------------------------- */
@@ -928,10 +1070,47 @@ h1 .course-code {
   margin: 0.1rem 0 0;
 }
 
-/* --- semester plan ------------------------------------------------------- */
+/* --- semester plan: a roadmap by year ------------------------------------ */
+
+.roadmap {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.roadmap-year > section {
+  display: grid;
+  gap: 0.75rem 2rem;
+  margin-block-end: 2.25rem;
+}
+
+@media (min-width: 56rem) {
+  .roadmap-year > section {
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+  }
+}
+
+.year-heading {
+  margin: 0;
+  font-size: 1.9rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.year-semesters {
+  display: grid;
+  gap: 1.75rem 2.5rem;
+}
+
+@media (min-width: 56rem) {
+  .year-semesters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 
 .semester {
-  padding-block-start: 0.25rem;
+  margin: 0;
+  min-width: 0;
 }
 
 .semester-head {
@@ -940,12 +1119,13 @@ h1 .course-code {
   align-items: baseline;
   justify-content: space-between;
   gap: 0.25rem 1rem;
-  padding-block-end: 0.5rem;
+  padding-block-end: 0.4rem;
   border-block-end: 2px solid var(--ink);
 }
 
-.semester-head h2 {
+.semester-head h3 {
   margin: 0;
+  font-size: 1.15rem;
 }
 
 .semester-units {
@@ -954,31 +1134,103 @@ h1 .course-code {
   font-variant-numeric: tabular-nums;
 }
 
+.load-ref {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+
+.semester .meter {
+  height: 0.4rem;
+  margin-block: 0.5rem 0.25rem;
+}
+
 .semester .course-list {
   border-block-start: 0;
 }
 
-.semester > .warning-line,
-.semester > .empty {
-  margin-block: 0.75rem;
+.semester .course-actions {
+  flex-basis: 100%;
+}
+
+.semester > .warning-line {
+  margin-block: 0.6rem;
+}
+
+.semester-empty {
+  margin-block-start: 0.75rem;
+  padding: 0.9rem 1rem;
+  border: 1px dashed var(--rule-strong);
+  color: var(--ink-2);
+}
+
+.semester-empty p {
+  margin: 0 0 0.25rem;
+  font-style: italic;
+}
+
+.semester-empty a {
+  font-weight: 600;
+  font-size: 0.92rem;
 }
 
 .semester-tag {
-  margin-inline-start: 0.4rem;
+  margin-inline-start: 0.5rem;
   padding: 0.05rem 0.5rem;
   border: 1px solid var(--accent);
   border-radius: 999px;
   color: var(--accent);
   font-family: var(--sans);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   vertical-align: middle;
 }
 
-.semester-now .semester-head {
+.semester-current .semester-head {
   border-block-end-color: var(--accent);
+}
+
+/* semesters already done step back */
+.semester-past .semester-head {
+  border-block-end: 1px solid var(--rule-strong);
+}
+
+.semester-past .semester-head h3,
+.semester-past .semester-units {
+  color: var(--ink-2);
+}
+
+.semester-past .course-row {
+  padding-block: 0.4rem;
+}
+
+.semester-past .course-id {
+  grid-template-columns: 6.25rem minmax(0, 1fr);
+  font-size: 0.93rem;
+}
+
+/* the semester head carries the units; the status stays for screen readers */
+.semester-past .course-meta {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.page-intro .band-estimate {
+  margin-block-start: 0.75rem;
+}
+
+.course-row.is-recorded .course-code {
+  color: var(--muted);
+}
+
+.course-row.is-recorded .course-title {
+  color: var(--ink-2);
 }
 
 /* --- README page --------------------------------------------------------- */
