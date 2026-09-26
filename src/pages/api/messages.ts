@@ -13,5 +13,5 @@ export const POST: APIRoute = async ({ request, redirect }) => {
   if (body) {
     bus.emit("message", addMessage(body.slice(0, 500)));
   }
-  return redirect("/", 303);
+  return redirect("/guestbook/", 303);
 };

@@ -27,11 +27,11 @@ describe("guestbook", () => {
   it("accepts a message and redirects back to the page", async () => {
     const res = await post("/api/messages", new URLSearchParams({ body: message }));
     expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/");
+    expect(res.headers.get("location")).toBe("/guestbook/");
   });
 
   it("persists the message: a fresh page load includes it", async () => {
-    const res = await fetch(baseUrl);
+    const res = await fetch(new URL("/guestbook/", baseUrl));
     expect(await res.text()).toContain(message);
   });
 

@@ -1,0 +1,63 @@
+---
+import "../styles.css";
+
+interface Props {
+  title: string;
+  /** the nav item for this page, marked aria-current */
+  current?: "dashboard" | "courses" | "plan" | "about";
+}
+
+const { title, current } = Astro.props;
+const nav = [
+  { key: "dashboard", href: "/", label: "Dashboard" },
+  { key: "courses", href: "/courses/", label: "Courses" },
+  { key: "plan", href: "/plan/", label: "Semester plan" },
+  { key: "about", href: "/readme/", label: "About" },
+] as const;
+---
+
+<!doctype html>
+<html lang="en-AU">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} · ANU Degree Planner</title>
+  </head>
+  <body>
+    <a class="skip" href="#content">Skip to content</a>
+    <header class="masthead">
+      <div class="masthead-inner">
+        <a class="wordmark" href="/">
+          <span class="wordmark-anu">ANU</span>
+          <span class="wordmark-name">Degree Planner</span>
+        </a>
+        <nav aria-label="Main">
+          <ul>
+            {
+              nav.map((item) => (
+                <li>
+                  <a href={item.href} aria-current={item.key === current ? "page" : undefined}>
+                    {item.label}
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </nav>
+      </div>
+      <p class="prototype-notice">
+        <strong>Student planning prototype.</strong> Demo data only — not an official ANU degree
+        audit. Check your program rules on Programs &amp; Courses before you enrol.
+      </p>
+    </header>
+    <main id="content">
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <p>
+        A COMP4020 crit prototype. Course codes and titles follow ANU's; prerequisites, offerings and
+        degree rules are simplified. <a href="/readme/">About this prototype</a>
+      </p>
+    </footer>
+  </body>
+</html>

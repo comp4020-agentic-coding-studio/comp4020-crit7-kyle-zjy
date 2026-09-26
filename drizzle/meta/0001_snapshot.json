@@ -1,0 +1,585 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "82edd576-f4e9-4f57-8d74-b524d4df96ba",
+  "prevId": "accefc94-da7c-4f56-a4d9-14289689c2a6",
+  "tables": {
+    "course_offerings": {
+      "name": "course_offerings",
+      "columns": {
+        "course_id": {
+          "name": "course_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "session": {
+          "name": "session",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "course_offerings_course_id_courses_id_fk": {
+          "name": "course_offerings_course_id_courses_id_fk",
+          "tableFrom": "course_offerings",
+          "tableTo": "courses",
+          "columnsFrom": [
+            "course_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "course_offerings_course_id_session_pk": {
+          "columns": [
+            "course_id",
+            "session"
+          ],
+          "name": "course_offerings_course_id_session_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "course_offerings_session": {
+          "name": "course_offerings_session",
+          "value": "\"course_offerings\".\"session\" IN ('S1', 'S2')"
+        }
+      }
+    },
+    "course_prerequisites": {
+      "name": "course_prerequisites",
+      "columns": {
+        "course_id": {
+          "name": "course_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "prerequisite_id": {
+          "name": "prerequisite_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "course_prerequisites_course_id_courses_id_fk": {
+          "name": "course_prerequisites_course_id_courses_id_fk",
+          "tableFrom": "course_prerequisites",
+          "tableTo": "courses",
+          "columnsFrom": [
+            "course_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "course_prerequisites_prerequisite_id_courses_id_fk": {
+          "name": "course_prerequisites_prerequisite_id_courses_id_fk",
+          "tableFrom": "course_prerequisites",
+          "tableTo": "courses",
+          "columnsFrom": [
+            "prerequisite_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "course_prerequisites_course_id_prerequisite_id_pk": {
+          "columns": [
+            "course_id",
+            "prerequisite_id"
+          ],
+          "name": "course_prerequisites_course_id_prerequisite_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "course_prerequisites_not_self": {
+          "name": "course_prerequisites_not_self",
+          "value": "\"course_prerequisites\".\"course_id\" <> \"course_prerequisites\".\"prerequisite_id\""
+        }
+      }
+    },
+    "courses": {
+      "name": "courses",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "units": {
+          "name": "units",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "courses_code_unique": {
+          "name": "courses_code_unique",
+          "columns": [
+            "code"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "courses_code_shape": {
+          "name": "courses_code_shape",
+          "value": "\"courses\".\"code\" GLOB '[A-Z][A-Z][A-Z][A-Z][0-9][0-9][0-9][0-9]'"
+        }
+      }
+    },
+    "degree_requirements": {
+      "name": "degree_requirements",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "degree_id": {
+          "name": "degree_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rule": {
+          "name": "rule",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "required_units": {
+          "name": "required_units",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "code_prefix": {
+          "name": "code_prefix",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "min_level": {
+          "name": "min_level",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "degree_requirements_degree_id_degrees_id_fk": {
+          "name": "degree_requirements_degree_id_degrees_id_fk",
+          "tableFrom": "degree_requirements",
+          "tableTo": "degrees",
+          "columnsFrom": [
+            "degree_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "degree_requirements_rule": {
+          "name": "degree_requirements_rule",
+          "value": "\"degree_requirements\".\"rule\" IN ('list', 'level')"
+        },
+        "degree_requirements_level_fields": {
+          "name": "degree_requirements_level_fields",
+          "value": "(\"degree_requirements\".\"rule\" = 'level') = (\"degree_requirements\".\"code_prefix\" IS NOT NULL AND \"degree_requirements\".\"min_level\" IS NOT NULL)"
+        },
+        "degree_requirements_units": {
+          "name": "degree_requirements_units",
+          "value": "\"degree_requirements\".\"required_units\" > 0"
+        }
+      }
+    },
+    "degrees": {
+      "name": "degrees",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "total_units": {
+          "name": "total_units",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "degrees_code_unique": {
+          "name": "degrees_code_unique",
+          "columns": [
+            "code"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "messages": {
+      "name": "messages",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "requirement_courses": {
+      "name": "requirement_courses",
+      "columns": {
+        "requirement_id": {
+          "name": "requirement_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "course_id": {
+          "name": "course_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "requirement_courses_requirement_id_degree_requirements_id_fk": {
+          "name": "requirement_courses_requirement_id_degree_requirements_id_fk",
+          "tableFrom": "requirement_courses",
+          "tableTo": "degree_requirements",
+          "columnsFrom": [
+            "requirement_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "requirement_courses_course_id_courses_id_fk": {
+          "name": "requirement_courses_course_id_courses_id_fk",
+          "tableFrom": "requirement_courses",
+          "tableTo": "courses",
+          "columnsFrom": [
+            "course_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "requirement_courses_requirement_id_course_id_pk": {
+          "columns": [
+            "requirement_id",
+            "course_id"
+          ],
+          "name": "requirement_courses_requirement_id_course_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "student_courses": {
+      "name": "student_courses",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "student_id": {
+          "name": "student_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "course_id": {
+          "name": "course_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "year": {
+          "name": "year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "session": {
+          "name": "session",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "student_courses_one_per_course": {
+          "name": "student_courses_one_per_course",
+          "columns": [
+            "student_id",
+            "course_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "student_courses_student_id_students_id_fk": {
+          "name": "student_courses_student_id_students_id_fk",
+          "tableFrom": "student_courses",
+          "tableTo": "students",
+          "columnsFrom": [
+            "student_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "student_courses_course_id_courses_id_fk": {
+          "name": "student_courses_course_id_courses_id_fk",
+          "tableFrom": "student_courses",
+          "tableTo": "courses",
+          "columnsFrom": [
+            "course_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "student_courses_status": {
+          "name": "student_courses_status",
+          "value": "\"student_courses\".\"status\" IN ('completed', 'current', 'planned')"
+        },
+        "student_courses_session": {
+          "name": "student_courses_session",
+          "value": "\"student_courses\".\"session\" IN ('S1', 'S2')"
+        }
+      }
+    },
+    "students": {
+      "name": "students",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "degree_id": {
+          "name": "degree_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "students_degree_id_degrees_id_fk": {
+          "name": "students_degree_id_degrees_id_fk",
+          "tableFrom": "students",
+          "tableTo": "degrees",
+          "columnsFrom": [
+            "degree_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}
