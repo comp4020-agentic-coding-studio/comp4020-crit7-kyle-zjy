@@ -77,6 +77,17 @@ framework. A small complete product beats a large incomplete one.
 - On this WSL machine there's no `make`, so `pnpm install` fails compiling
   better-sqlite3's fallback; use `pnpm install --ignore-scripts` (the package
   ships a prebuilt binary). Fly's Docker build has a toolchain and is fine.
+- `dist/` is whatever was last built. After a throwaway experiment (e.g.
+  stubbing code to prove a test goes red), restore the source AND rebuild
+  before running the server by hand — a stale build once made persistence
+  look broken when only the experiment was.
+- Look at the pages, don't just test them. Screenshots come from Windows
+  Chrome (`/mnt/c/Program Files/Google/Chrome/Application/chrome.exe
+  --headless=new --screenshot=...`, run from `/mnt/c/Temp`, a fresh
+  `--user-data-dir` each time). It won't go narrower than 504px, so check
+  phone layouts by loading the page in a 390px-wide iframe.
+- Never `pkill -f` a pattern that appears in your own command line: it
+  kills the shell running it.
 - Commit at each working milestone with a message saying what changed and
   why. No squashing, no manufactured history.
 - Deploying: `flyctl deploy --remote-only --ha=false -a comp4020-crit7-kyle-zjy`
