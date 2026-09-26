@@ -101,7 +101,7 @@ const beyond = plan.filter((s) => !semesters.some((x) => termKey(x.term) === ter
                         </span>
                       ))}
                     </div>
-                    <CourseActions code={course.code} status="planned" term={semester.term} returnTo="/plan/" compact />
+                    <CourseActions code={course.code} status="planned" term={semester.term} returnTo="/plan/" />
                   </li>
                 );
               })}

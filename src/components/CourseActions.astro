@@ -23,7 +23,9 @@ const { code, status, term, returnTo, suggestedTerm, compact = false } = Astro.p
 const terms = planningTerms();
 const selected = termKey(term ?? suggestedTerm ?? terms[0]);
 const selectId = `term-${code}`;
-const showPlan = status === null || status === "planned";
+// moving a planned course between semesters lives on the plan page; compact
+// rows elsewhere just offer the status changes
+const showPlan = status === null || (status === "planned" && !compact);
 ---
 
 <form class:list={["course-actions", { compact }]} method="post" action="/api/courses">
@@ -54,7 +56,7 @@ const showPlan = status === null || status === "planned";
     )
   }
   {
-    status === "planned" && (
+    status === "planned" && !compact && (
       <button name="action" value="plan">
         Move <span class="visually-hidden">{code}</span> to this semester
       </button>
@@ -76,7 +78,7 @@ const showPlan = status === null || status === "planned";
   }
   {
     status === null && !compact && (
-      <button name="action" value="complete">
+      <button class="quiet" name="action" value="complete">
         Already completed <span class="visually-hidden">{code}</span>
       </button>
     )

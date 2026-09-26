@@ -27,7 +27,8 @@ const flash = readFlash(Astro.url, new Set(byCode.keys()));
 const progress = degreeProgress(data.degree.totalUnits, data.catalog, data.records);
 const requirements = data.requirements.map((r) => requirementProgress(r, data.catalog, data.records));
 const gaps = requirements.filter((r) => r.gap > 0);
-// units no requirement asks for specifically: anything counts toward them
+// units the set course lists account for (the level requirement overlaps
+// them); the rest of the degree is open to electives
 const specific = data.requirements.filter((r) => r.rule === "list").reduce((sum, r) => sum + r.requiredUnits, 0);
 const upcoming = nextTerm(CURRENT_TERM);
 const next = suggestions(data.catalog, data.records, upcoming);
@@ -42,9 +43,10 @@ const warnings = planWarnings(data.catalog, data.records);
 const groups: { status: Status; heading: string; empty: string }[] = [
   { status: "current", heading: `Current — ${termLabel(CURRENT_TERM)}`, empty: "You aren't taking any courses this semester." },
   { status: "planned", heading: "Planned", empty: "Nothing planned yet. Browse available courses to start shaping your next semester." },
-  { status: "completed", heading: "Completed", empty: "No completed courses recorded yet." },
 ];
 const recordsBy = (status: Status) => data.records.filter((r) => r.status === status);
+// most recent first
+const completed = recordsBy("completed").reverse();
 const stateLabel = { complete: "Complete", "in-progress": "In progress", "not-started": "Not started" } as const;
 ---
 
@@ -62,7 +64,7 @@ const stateLabel = { complete: "Complete", "in-progress": "In progress", "not-st
       <section aria-labelledby="summary-heading" class="summary">
         <h2 id="summary-heading">Degree progress</h2>
         <p class="summary-headline" data-testid="units-completed">
-          <strong>{progress.completed}</strong> / {progress.total} units completed
+          <strong>{progress.completed}</strong> / {progress.total} units completed{" "}
           <span class="summary-pct">({progress.percentComplete}%)</span>
         </p>
         <Meter completed={progress.completed} current={progress.current} planned={progress.planned} total={progress.total} />
@@ -100,7 +102,7 @@ const stateLabel = { complete: "Complete", "in-progress": "In progress", "not-st
       <section aria-labelledby="courses-heading">
         <h2 id="courses-heading">Your courses</h2>
         {
-          groups.map((group) => (
+          groups.filter((group) => group.status !== "completed").map((group) => (
             <div class="course-group">
               <h3>{group.heading}</h3>
               {recordsBy(group.status).length === 0 ? (
@@ -129,6 +131,29 @@ const stateLabel = { complete: "Complete", "in-progress": "In progress", "not-st
             </div>
           ))
         }
+        <div class="course-group">
+          <h3>Completed</h3>
+          {
+            completed.length === 0 ? (
+              <p class="empty">No completed courses recorded yet.</p>
+            ) : (
+              <details class="completed-history">
+                <summary>
+                  {completed.length} courses, {progress.completed} units — show all
+                </summary>
+                <ul class="course-list dense">
+                  {completed.map((record) => (
+                    <li class="course-row" data-course={record.code} data-status="completed">
+                      <a class="course-code" href={`/courses/${record.code}/`}>{record.code}</a>
+                      <span class="course-title">{byCode.get(record.code)?.title}</span>
+                      <span class="course-meta">{termLabel(record)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )
+          }
+        </div>
       </section>
     </div>
 
@@ -136,7 +161,7 @@ const stateLabel = { complete: "Complete", "in-progress": "In progress", "not-st
       <section aria-labelledby="remaining-heading">
         <h2 id="remaining-heading">Still required</h2>
         {
-          gaps.length === 0 && progress.unplanned === 0 ? (
+          gaps.length === 0 ? (
             <p class="empty">Your completed, current and planned courses cover every requirement.</p>
           ) : (
             <ul class="remaining" data-testid="still-required">
@@ -145,12 +170,15 @@ const stateLabel = { complete: "Complete", "in-progress": "In progress", "not-st
                   <strong>{r.gap} units</strong> from {r.requirement.name}
                 </li>
               ))}
-              {progress.unplanned > 0 && (
-                <li data-requirement="Total">
-                  <strong>{progress.unplanned} units</strong> of any courses to reach {progress.total}
-                </li>
-              )}
             </ul>
+          )
+        }
+        {
+          progress.unplanned > 0 && (
+            <p class="remaining-total" data-testid="unplanned-total">
+              Overall, <strong>{progress.unplanned} of {progress.total} units</strong> aren't completed, current or
+              planned yet{gaps.length > 0 ? " — the requirements above come out of those units" : ""}.
+            </p>
           )
         }
         <p class="note">

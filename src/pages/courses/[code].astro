@@ -21,7 +21,7 @@ const unlocks = course ? data.catalog.filter((c) => c.prerequisites.includes(cou
 const countsFor = course ? data.requirements.filter((r) => countsToward(r, course.code)) : [];
 const flash = readFlash(Astro.url, new Set(data.catalog.map((c) => c.code)));
 const upcoming = nextTerm(CURRENT_TERM);
-const recorded = { completed: "completed", current: "taking now", planned: "planned" } as const;
+const recorded = { completed: "Completed", current: "Taking now — done by next semester", planned: "Planned" } as const;
 ---
 
 <Base title={course ? `${course.code} ${course.title}` : "Course not found"} current="courses">
@@ -86,7 +86,7 @@ const recorded = { completed: "completed", current: "taking now", planned: "plan
                       <li>
                         <a href={`/courses/${p}/`}>{p}</a> —{" "}
                         {r ? (
-                          <span class:list={["status", `status-${r.status}`]}>You have it {recorded[r.status]}</span>
+                          <span class:list={["status", `status-${r.status}`]}>{recorded[r.status]}</span>
                         ) : (
                           <span class="status status-missing">You have not completed {p} yet</span>
                         )}
