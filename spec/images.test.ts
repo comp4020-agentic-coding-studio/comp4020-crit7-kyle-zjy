@@ -17,7 +17,7 @@ describe("images", () => {
         const src = img.getAttribute("src") ?? "";
         const res = await fetch(new URL(src, new URL(route, baseUrl)));
         expect(res.status, `${src} on ${route}`).toBe(200);
-        expect(res.headers.get("content-type") ?? "", src).toMatch(/^image\//);
+        expect(res.headers.get("content-type") ?? "", src).toMatch(/^image\/(png|jpeg|webp|gif|avif|svg\+xml)/);
       }
     });
   }

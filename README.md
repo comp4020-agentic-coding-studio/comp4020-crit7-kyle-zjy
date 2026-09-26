@@ -8,7 +8,7 @@ goes to a SQLite database on the server and is still there after a reload.
 It's the ANU system I wish existed, built as a small vertical slice for
 COMP4020 crit 7.
 
-![The dashboard: degree progress, requirement progress, still required, and courses you could take next](public/dashboard.png)
+<img src="public/dashboard.png" alt="The dashboard: degree progress, requirement progress, still required, and courses you could take next" width="1280" height="1500">
 
 **This is not an official ANU degree audit.** It models one demo student in
 one simplified demo degree. Course codes and titles follow ANU's; the
