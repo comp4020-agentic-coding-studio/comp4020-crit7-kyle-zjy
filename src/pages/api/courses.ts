@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { bus } from "../../lib/events";
+import { bus, type PlannerChange } from "../../lib/events";
 import { type Done, FLASH_PARAMS, type Failure, safeReturnPath } from "../../lib/flash";
 import { CURRENT_TERM, compareTerms, parseTermKey, planningTerms, termKey } from "../../lib/planner";
 import { loadPlanner, removeCourse, setCourseStatus } from "../../lib/store";
@@ -29,7 +29,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
   };
   const fail = (error: Failure) => go({ error });
   const done = (what: Done, extra: Record<string, string> = {}) => {
-    bus.emit("change", { course: code, action: what });
+    bus.emit("change", { course: code, action: what } satisfies PlannerChange);
     return go({ done: what, course: code, ...extra });
   };
 

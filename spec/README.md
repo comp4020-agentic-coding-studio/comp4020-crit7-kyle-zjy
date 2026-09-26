@@ -37,13 +37,21 @@ whole of `README.md`, your account of what the app is and what good looks like
 here. It renders the markdown to text and asks whether the served page contains
 all of it, so styling and navigation around it pass and a trimmed copy fails.
 
-## The starter's plumbing (shipped, retires with the starter)
+## The planner's contracts (this submission)
 
-`guestbook.test.ts` drives the running app over HTTP to prove the supplied
-plumbing works in this repo: a message survives a reload, and a new one reaches
-other clients over the SSE stream. A red run on a fresh clone means the platform
-is broken, not your work. It describes the starter, so it goes when the starter
-does.
+The starter's `guestbook.test.ts` retired with the guestbook. Two files replace
+it:
+
+- `planner.test.ts` drives the running app over HTTP the way a browser does —
+  form POST, 303, fresh page load — and asserts the crit's core promise: a
+  change is written to SQLite and is still there after a reload. It also
+  covers progress recalculation, prerequisite eligibility, catalogue filters,
+  plan warnings, rejected input, CSRF refusal and the SSE broadcast (which the
+  CI deploy job probes too). It is the only file that changes the demo
+  student, and it resets them first.
+- `planner-logic.test.ts` tests `src/lib/planner.ts`, the pure functions that
+  derive progress, requirement state, eligibility and plan warnings from rows,
+  on hand-built data — the edge cases that are tedious to reach over HTTP.
 
 ## Your spec tests (yours to write)
 

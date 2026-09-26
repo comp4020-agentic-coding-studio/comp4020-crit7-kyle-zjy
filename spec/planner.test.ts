@@ -71,7 +71,7 @@ describe("planner", () => {
 
   it("confirms the change on the page it redirects to", async () => {
     const doc = await page("/?done=planned&course=COMP2420&term=2027-S1");
-    expect(doc.querySelector('[role="status"]')?.textContent).toContain("COMP2420 added to your plan");
+    expect(doc.querySelector('.flash[role="status"]')?.textContent).toContain("COMP2420 added to your plan");
   });
 
   it("recalculates units and requirement progress when a course is completed", async () => {
@@ -116,7 +116,7 @@ describe("planner", () => {
     const res = await change("COMP9999", "plan", { term: "2027-S1" });
     expect(res.headers.get("location")).toBe("/?error=unknown-course");
     const doc = await page("/?error=unknown-course");
-    expect(doc.querySelector('[role="alert"]')?.textContent).toContain("isn't in the catalogue");
+    expect(doc.querySelector('.flash[role="alert"]')?.textContent).toContain("isn't in the catalogue");
     expect(statusOf(doc, "COMP9999")).toBeNull();
   });
 
@@ -208,6 +208,26 @@ describe("planner", () => {
     expect(semester?.querySelector('[data-testid="semester-units"]')?.textContent).toBe("30 units");
     expect(semester?.querySelector('[data-testid="overload"]')?.textContent).toContain("30 units planned");
   });
+
+  it("tells other open pages about a change over the SSE stream", async () => {
+    // subscribe first, then change something, then read until the event arrives
+    const stream = await fetch(new URL("/api/events", baseUrl));
+    expect(stream.headers.get("content-type")).toContain("text/event-stream");
+    const reader = stream.body?.getReader();
+    if (!reader) throw new Error("no response body");
+
+    await change("COMP3900", "plan", { term: "2027-S2" });
+
+    const decoder = new TextDecoder();
+    let received = "";
+    while (!received.includes("COMP3900")) {
+      const { value, done } = await reader.read();
+      if (done) throw new Error("stream ended before the event arrived");
+      received += decoder.decode(value, { stream: true });
+    }
+    await reader.cancel();
+    expect(received).toContain('data: {"course":"COMP3900","action":"planned"}');
+  }, 10_000);
 
   it("restores the seed state on reset", async () => {
     expect((await post("/api/reset", {})).status).toBe(303);

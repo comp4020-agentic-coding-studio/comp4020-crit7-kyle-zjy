@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import Database from "better-sqlite3";
-import { desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import {
@@ -10,8 +10,6 @@ import {
   courses,
   degreeRequirements,
   degrees,
-  type Message,
-  messages,
   requirementCourses,
   studentCourses,
   students,
@@ -112,14 +110,4 @@ export function resetDemoRecords(studentId: number): void {
         .run();
     }
   });
-}
-
-export type { Message };
-
-export function listMessages(): Message[] {
-  return db.select().from(messages).orderBy(desc(messages.id)).limit(50).all();
-}
-
-export function addMessage(body: string): Message {
-  return db.insert(messages).values({ body }).returning().get();
 }

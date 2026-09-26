@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { bus } from "../../lib/events";
+import { bus, type PlannerChange } from "../../lib/events";
 import { resetDemo } from "../../lib/store";
 
 // There's no login, so every visitor shares the one demo student. This puts
@@ -12,6 +12,6 @@ export const POST: APIRoute = ({ redirect }) => {
     console.error("demo reset failed", error);
     return redirect("/?error=failed", 303);
   }
-  bus.emit("change", { action: "reset" });
+  bus.emit("change", { action: "reset" } satisfies PlannerChange);
   return redirect("/?done=reset", 303);
 };
